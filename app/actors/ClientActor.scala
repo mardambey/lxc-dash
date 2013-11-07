@@ -40,7 +40,8 @@ class ClientActor(userId: Int, interval: Int = 30) extends Actor {
 
       val data = Conf.hosts.map(
         h => {
-          h -> h.containers.running.map(_.uri)
+          val c = h.containers
+          h -> Map("running" -> c.running.map(_.uri), "frozen" -> c.frozen.map(_.uri), "stopped" -> c.stopped.map(_.uri))
         }
       ).toMap
 

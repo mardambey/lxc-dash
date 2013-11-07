@@ -3,7 +3,17 @@
   <div class="container">
     <div class="col-sm-12">
       <h1>
-        {{hosts}}
+          <ul>
+              <li class="host" ng-repeat="(host, containerList) in hosts">
+                  {{host}}
+                  <ul class="state" ng-repeat="(state, containers) in containerList">
+                      {{state}}
+                      <li class="container" ng-repeat="container in containers">
+                          {{container}}
+                      </li>
+                   </ul>
+              </li>
+          </ul>
       </h1>
     </div>
 
