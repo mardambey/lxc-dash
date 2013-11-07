@@ -1,22 +1,15 @@
 @layout("Hello Play Akka Angular WebSocket") {
-<div class="jumbotron" ng-controller="HostsController">
-  <div class="container">
-    <div class="col-sm-12">
-      <h1>
-          <ul>
-              <li class="host" ng-repeat="(host, containerList) in hosts">
-                  {{host}}
-                  <ul class="state" ng-repeat="(state, containers) in containerList">
-                      {{state}}
-                      <li class="container" ng-repeat="container in containers">
-                          {{container}}
-                      </li>
-                   </ul>
-              </li>
-          </ul>
-      </h1>
+<div class="container" ng-controller="HostsController">
+  <div>
+    <div class="host" ng-repeat="(host, containerList) in hosts">
+      {{host}}
+      <div class="state" ng-repeat="(state, containers) in containerList">
+        {{state}}
+        <div class="container" ng-repeat="container in containers">
+         {{container}}
+        </div>
+      </div>
     </div>
-
   </div>
 </div>
 }
