@@ -4,7 +4,8 @@ object Conf {
   val sshUser = "root"
 
   val hosts = List(
-    "localhost")
+    "blackhowler.gene")
+//    "localhost")
 //    "hydrogen",
 //    "helium",
 //    "moorland",
@@ -69,7 +70,7 @@ object SSH {
 
 }
 
-case class Remote(uri: String) {
+case class Remote(uri: String)(implicit sshUser: String = "") {
   def ssh(cmd: String) : Option[String] = {
     SSH.run(uri, cmd)
   }
@@ -104,13 +105,13 @@ object LxcHost {
   val FROZEN  = "FROZEN"
   val STOPPED = "STOPPED"
 
-  def apply(uri: String) = new LxcHost(uri)
+  def apply(uri: String)(implicit sshUser: String = "") = new LxcHost(uri)(sshUser)
 
-  implicit def stringToLxcHost(uri: String) : LxcHost = new LxcHost(uri)
+  implicit def stringToLxcHost(uri: String)(implicit sshUser: String = "") : LxcHost = new LxcHost(uri)(sshUser)
 }
 
 
-class LxcHost(override val uri: String) extends Remote(uri) {
+class LxcHost(override val uri: String)(implicit sshUser: String = "") extends Remote(uri) {
 
   import LxcHost._
 

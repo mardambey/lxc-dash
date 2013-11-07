@@ -15,17 +15,11 @@ import actors._
 import akka.actor.Props
 import akka.pattern.ask
 import akka.util.Timeout
-import actors.UpdateTime
 import actors.StartSocket
 import actors.SocketClosed
 import scala.util.Random
 import play.api.Routes
 
-/**
- * User: Luigi Antonini
- * Date: 17/06/13
- * Time: 23:25
- */
 object AppController extends Controller with Secured{
 
   def index = withAuth {
@@ -33,53 +27,29 @@ object AppController extends Controller with Secured{
       Ok(views.html.app.index())
   }
 
-  val timerActor = Akka.system.actorOf(Props[TimerActor])
-
-  /**
-   * This function crate a WebSocket using the
-   * enumertator linked to the current user,
-   * retreived from the TaskActor. 
-   */
   def indexWS = withAuthWS {
-    userId =>
+    userId => {
+
+      val actor = Akka.system.actorOf(Props(new ClientActor(userId)))
 
       implicit val timeout = Timeout(3 seconds)
 
-      // using the ask pattern of akka, 
-      // get the enumerator for that user
-      (timerActor ? StartSocket(userId)) map {
+      (actor ? StartSocket) map {
         enumerator =>
 
-          // create a Itreatee which ignore the input and
-          // and send a SocketClosed message to the actor when
-          // connection is closed from the client
           (Iteratee.ignore[JsValue] mapDone {
             _ =>
-              timerActor ! SocketClosed(userId)
+              actor ! SocketClosed
           }, enumerator.asInstanceOf[Enumerator[JsValue]])
       }
-  }
-
-  def start = withAuth {
-    userId => implicit request =>
-      timerActor ! Start(userId)
-      Ok("")
-  }
-
-
-  def stop = withAuth {
-    userId => implicit request =>
-      timerActor ! Stop(userId)
-      Ok("")
+    }
   }
 
   def javascriptRoutes = Action {
     implicit request =>
       Ok(
         Routes.javascriptRouter("jsRoutes")(
-          routes.javascript.AppController.indexWS,
-          routes.javascript.AppController.start,
-          routes.javascript.AppController.stop
+          routes.javascript.AppController.indexWS
         )
       ).as("text/javascript")
   }
