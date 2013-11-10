@@ -4,7 +4,8 @@ object Conf {
   val sshUser = "root"
 
   val hosts = List(
-    "blackhowler.gene")
+    "blackhowler.gene",
+    "turkish")
 //    "localhost")
 //    "hydrogen",
 //    "helium",

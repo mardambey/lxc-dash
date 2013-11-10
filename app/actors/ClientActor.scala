@@ -15,6 +15,11 @@ import scala.concurrent.duration._
 
 import misc.LxcHost.stringToLxcHost
 import misc.Conf
+import akka.util.Timeout
+import akka.pattern.ask
+import scala.concurrent.{Await, Future}
+
+import actors.HostMonitorActor.HostInfo
 
 class ClientActor(userId: Int, interval: Int = 30) extends Actor {
 
@@ -37,15 +42,22 @@ class ClientActor(userId: Int, interval: Int = 30) extends Actor {
     case UpdateClient => {
 
       implicit val sshUser = "root"
+      implicit val timeout = Timeout(3 seconds)
 
-      val data = Conf.hosts.map(
-        h => {
-          val c = h.containers
-          h -> Map("running" -> c.running.map(_.uri), "frozen" -> c.frozen.map(_.uri), "stopped" -> c.stopped.map(_.uri))
-        }
-      ).toMap
+      val f = ask(HostMonitorActor.actor, GetHostInfo).mapTo[HostInfo]
+      val data = Await.result(f, timeout.duration)
 
-      val json = Map("data" -> toJson(data))
+      val nonEmptyData = data.map(hostInfo => {
+        val states = hostInfo._2
+
+        val goodStates = states.filter(state => {
+          !state._2.isEmpty
+        })
+
+        (hostInfo._1 -> goodStates)
+      }).toMap
+
+      val json = Map("data" -> toJson(nonEmptyData))
       log debug s"$self pushing to $userId"
       userChannel.channel.push(Json.toJson(json))
     }
