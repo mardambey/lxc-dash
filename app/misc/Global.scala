@@ -3,6 +3,7 @@ package misc
 import play.api._
 import play.api.mvc._
 import play.api.mvc.Results._
+import actors.{Update, HostMonitorActor}
 
 
 /**
@@ -15,6 +16,7 @@ import play.api.mvc.Results._
 object Global extends GlobalSettings {
 
   override def onStart(app: Application) {
+    HostMonitorActor.actor ! Update
   }
 
   override def onHandlerNotFound(request: RequestHeader) = {

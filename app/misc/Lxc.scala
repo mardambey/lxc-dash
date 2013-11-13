@@ -118,16 +118,24 @@ class LxcHost(override val uri: String)(implicit sshUser: String = "") extends R
 
   def info(container: String) : Map[String, String] = {
 
-    ssh("cat /var/lib/lxc/%s/config".format(container))
-    .getOrElse("")
-    .split("\n")
-    .map(_.trim)
-    .filter(!_.isEmpty)
-    .filter(!_.startsWith("#"))
-    .filter(_.contains("="))
-    .map(_.split("="))
-    .map(t => t(0).trim -> t(1).trim)
-    .toMap
+    try {
+      ssh("cat /var/lib/lxc/%s/config".format(container))
+        .getOrElse("")
+        .split("\n")
+        .map(_.trim)
+        .filter(!_.isEmpty)
+        .filter(!_.startsWith("#"))
+        .filter(_.contains("="))
+        .map(_.split("="))
+        .filter(_.size == 2)
+        .map(t => t(0).trim -> t(1).trim)
+        .toMap
+    } catch {
+      case e: Exception => {
+        Map.empty[String, String]
+      }
+    }
+
   }
 
   def containers: LxcList = {
