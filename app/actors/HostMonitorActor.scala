@@ -22,7 +22,7 @@ import actors.HostMonitorActor.HostInfo
 object HostMonitorActor {
 
   type HostInfo = Map[String, Map[String, Seq[String]]]
-  val actor = Akka.system.actorOf(Props(new HostMonitorActor(60)))
+  val actor = Akka.system.actorOf(Props(new HostMonitorActor(300)))
 }
 
 class HostMonitorActor(interval: Int) extends Actor {

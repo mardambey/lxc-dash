@@ -140,6 +140,7 @@ class LxcHost(override val uri: String)(implicit sshUser: String = "") extends R
     .getOrElse("")
     .split("\n")
     .filter(!_.isEmpty)
+    .map(_.replace("(auto)", ""))
     .map(_.trim)
     .foreach({
       case RUNNING   => { curBuf = Some(running) }
