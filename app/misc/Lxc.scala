@@ -1,5 +1,7 @@
 package misc
 
+import java.net.InetAddress
+
 object Conf {
   val sshUser = "root"
 
@@ -71,7 +73,7 @@ object SSH {
 
 }
 
-case class Remote(uri: String)(implicit sshUser: String = "") {
+class Remote(uri: String)(implicit sshUser: String = "") {
   def ssh(cmd: String) : Option[String] = {
     SSH.run(uri, cmd)
   }
@@ -86,10 +88,10 @@ case class Remote(uri: String)(implicit sshUser: String = "") {
 }
 
 object Container {
-  def apply(uri: String, config: Map[String, String]) = new Container(uri, config)
+  def apply(name: String, uri: String, config: Map[String, String]) = new Container(name, uri, config)
 }
 
-class Container(override val uri: String, val config: Map[String, String]) extends Remote(uri) {
+class Container(name: String, val uri: String, val config: Map[String, String]) extends Remote(uri) {
 }
 
 case class LxcList(
@@ -98,8 +100,7 @@ case class LxcList(
   stopped : Seq[Container]) {
 
   override def toString() : String = {
-    "{running : [%s]}, {frozen: [%s]}, {stopped: [%s]}".
-    format(running.mkString(","), frozen.mkString(","), stopped.mkString(","))
+    "{running : [%s]}, {frozen: [%s]}, {stopped: [%s]}".format(running.mkString(","), frozen.mkString(","), stopped.mkString(","))
   }
 }
 
@@ -114,15 +115,15 @@ object LxcHost {
   implicit def stringToLxcHost(uri: String)(implicit sshUser: String = "") : LxcHost = new LxcHost(uri)(sshUser)
 }
 
-
-class LxcHost(override val uri: String)(implicit sshUser: String = "") extends Remote(uri) {
+class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri) {
 
   import LxcHost._
 
   def info(container: String) : Map[String, String] = {
 
     try {
-      ssh("cat /var/lib/lxc/%s/config".format(container))
+      val cmd : String = "cat /var/lib/lxc/%s/config".format(container)
+      ssh(cmd)
         .getOrElse("")
         .split("\n")
         .map(_.trim)
@@ -141,6 +142,31 @@ class LxcHost(override val uri: String)(implicit sshUser: String = "") extends R
 
   }
 
+  private def ping(host: String) : Boolean = {
+    try { "ping -c1 %s".format(host).!!.contains("bytes from") }
+    catch { case t:Throwable => false }
+  }
+
+  private def detectUri(container: String) : Option[String] = {
+    try {
+      val ip = InetAddress.getByName(ssh("cat /var/lib/lxc/%s/rootfs/etc/network/interfaces".format(container))
+        .getOrElse("")
+        .split("\n")
+        .map(_.trim)
+        .filter(!_.isEmpty)
+        .filter(!_.startsWith("#"))
+        .filter(_.contains("address"))
+        .map(_.split(" "))
+        .filter(_.size == 2)
+        .map(_(1).trim)
+        .head)
+
+      Some(ip.getHostName)
+    } catch {
+      case t:Throwable => None
+    }
+  }
+
   def containers: LxcList = {
     val running = new scala.collection.mutable.ArrayBuffer[Container]()
     val frozen  = new scala.collection.mutable.ArrayBuffer[Container]()
@@ -157,7 +183,20 @@ class LxcHost(override val uri: String)(implicit sshUser: String = "") extends R
       case RUNNING   => { curBuf = Some(running) }
       case FROZEN    => { curBuf = Some(frozen)  }
       case STOPPED   => { curBuf = Some(stopped) }
-      case container => { curBuf.map(_ += Container(container, info(container))) }
+      case container => {
+        val i = info(container)
+
+        // try to figure out container's hostname
+
+        val uri = if (ping(container)) {
+          container
+        } else if (ping(i.getOrElse("lxc.utsname", ""))) {
+          i.get("lxc.utsname").get
+        } else {
+          detectUri(container).getOrElse(container)
+        }
+
+        curBuf.map(_ += Container(container, uri, i)) }
     })
     
     LxcList(running, frozen, stopped)

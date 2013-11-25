@@ -14,7 +14,6 @@ import actors.HostMonitorActor.HostInfo
 
 object HostMonitorActor {
 
-  //type HostInfo = Map[String, Map[String, Seq[String]]]
   case class HostInfo(name:String, load: String, containers: Map[String, Seq[String]])
   val actor = Akka.system.actorOf(Props(new HostMonitorActor(300)))
 }
