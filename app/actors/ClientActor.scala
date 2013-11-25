@@ -21,7 +21,7 @@ import scala.concurrent.{Await, Future}
 
 import actors.HostMonitorActor.HostInfo
 
-class ClientActor(userId: Int, interval: Int = 30) extends Actor {
+class ClientActor(userId: Int, interval: Int = 250) extends Actor {
 
   protected val cancellable = context.system.scheduler.schedule(0 second, interval second, self, UpdateClient)
 
