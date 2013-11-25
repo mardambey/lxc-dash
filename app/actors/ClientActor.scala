@@ -48,18 +48,23 @@ class ClientActor(userId: Int, interval: Int = 30) extends Actor {
       val data = Await.result(f, timeout.duration)
 
       val nonEmptyData = data.map(hostInfo => {
+
         val states = hostInfo._2
 
-        val goodStates = states.filter(state => {
-          !state._2.isEmpty
-        })
+        val goodStates = states
+          // only return non-empty states
+          .filter(state => {
+            !state._2.isEmpty
+          })
 
-        (hostInfo._1 -> goodStates)
-      }).toMap
+        Json.obj(
+          "host" -> hostInfo._1,
+          "containers" -> goodStates
+        )
+      })
 
-      val json = Map("data" -> toJson(nonEmptyData))
       log debug s"$self pushing to $userId"
-      userChannel.channel.push(Json.toJson(json))
+      userChannel.channel.push(Json.toJson(nonEmptyData))
     }
 
     case SocketClosed => {

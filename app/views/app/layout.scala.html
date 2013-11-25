@@ -8,15 +8,26 @@
 
     <link rel="stylesheet" media="screen" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
     <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/bootstrap-override.css")">
+    <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/select2.css")">
+    <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/select2-bootstrap.css")">
     <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/app.css")">
     <link rel="shortcut icon" type="image/png" href="@routes.Assets.at("images/fav.png")">
     <script src="@routes.Assets.at("javascripts/routes")" type="text/javascript"></script>
     <script src="@routes.Assets.at("javascripts/jquery-1.9.0.min.js")" type="text/javascript"></script>
+    <script src="@routes.Assets.at("javascripts/select2.js")" type="text/javascript"></script>
     <!--<script src="@routes.Assets.at("bootstrap/js/bootstrap.min.js")" type="text/javascript"></script>-->
     <!-- Latest compiled and minified JavaScript -->
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
     <script src="@routes.Assets.at("javascripts/app.js")" type="text/javascript"></script>
+    <script>
+        $(document).ready(function() {
+            $("#servers").select2({
+                placeholder: "choose server",
+                allowClear: true,
+            });
+        });
+    </script>
 </head>
 <body ng-controller="HostsController">
 
@@ -52,19 +63,13 @@
         </ul>
         <form class="navbar-form navbar-left" role="search">
             <div class="form-group">
-                <ul class="nav navbar-nav">
-                    <li class="dropdown">
-                        <input class="form-control dropdown-toggle" placeholder="Search" data-toggle="dropdown" ng-model="searchTerm" ng-keyup="search($event)">
-                        <ul class="dropdown-menu" >
-                            <li ng-repeat="(host, containerList) in curHosts"><a href="" ng-click="$parent.curHost = {name:host, containerList:containerList};">{{host}}</a></li>
-                        </ul>
-                    </li>
-                    <li>
-
-                    </li>
-                </ul>
+                <select id="servers" ng-model="curHost" ng-options="host.host for host in curHosts">
+                    <option value=""><!-- required by select2 lib to show a place holder --></option>
+                    <option value="{{host}}">{{host}}</option>
+                </select>
             </div>
         </form>
+
         <!-- ul class="nav navbar-nav navbar-right">
             <li><a href="#">Link</a></li>
             <li class="dropdown">

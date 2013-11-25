@@ -1,7 +1,7 @@
 @layout("Hello Play Akka Angular WebSocket") {
 
 <div class="row">
-    <div ng-repeat="(state, containers) in curHost.containerList">
+    <div ng-repeat="(state, containers) in curHost.containers">
         <div class="col-sm-6 col-md-4" ng-repeat="container in containers">
             <div class="thumbnail">
                 <h4>{{container}}</h4>

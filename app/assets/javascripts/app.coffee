@@ -15,19 +15,8 @@ utils.filter('stateToLabel',  ->
 
   $scope.searchTerm = undefined
   $scope.hosts = undefined
-  $scope.matches = undefined
   $scope.curHosts = undefined
-
-  $scope.search = ($event) ->
-    console.log("searchTerm=#{$scope.searchTerm}")
-    $scope.matches = (host for host of $scope.hosts when host.indexOf($scope.searchTerm) >= 0)
-    console.log("matches=#{$scope.matches}")
-    $scope.curHosts = {}
-
-    # TODO: display hosts and containers, use groups / separators
-
-    for match in $scope.matches
-      $scope.curHosts[match] = $scope.hosts[match]
+  $scope.curHost = undefined
 
   startWS = ->
     wsUrl = jsRoutes.controllers.AppController.indexWS().webSocketURL()
@@ -36,7 +25,7 @@ utils.filter('stateToLabel',  ->
     $scope.socket.onmessage = (msg) ->
       $scope.$apply( ->
         console.log "received : #{msg.data}"
-        $scope.hosts = JSON.parse(msg.data).data
+        $scope.hosts = JSON.parse(msg.data)
         $scope.curHosts = $scope.hosts
       )
 
