@@ -44,12 +44,12 @@ class ClientActor(userId: Int, interval: Int = 30) extends Actor {
       implicit val sshUser = "root"
       implicit val timeout = Timeout(3 seconds)
 
-      val f = ask(HostMonitorActor.actor, GetHostInfo).mapTo[HostInfo]
+      val f = ask(HostMonitorActor.actor, GetHostInfo).mapTo[Seq[HostInfo]]
       val data = Await.result(f, timeout.duration)
 
       val nonEmptyData = data.map(hostInfo => {
 
-        val states = hostInfo._2
+        val states = hostInfo.containers
 
         val goodStates = states
           // only return non-empty states
@@ -58,7 +58,8 @@ class ClientActor(userId: Int, interval: Int = 30) extends Actor {
           })
 
         Json.obj(
-          "host" -> hostInfo._1,
+          "host" -> hostInfo.name,
+          "load" -> hostInfo.load,
           "containers" -> goodStates
         )
       })

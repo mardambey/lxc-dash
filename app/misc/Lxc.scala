@@ -79,8 +79,11 @@ case class Remote(uri: String)(implicit sshUser: String = "") {
   def scp(localPath: String, remotePath: String) : Option[Int] = {
     SSH.copy(uri, localPath, remotePath)
   }
-}
 
+  def load : Option[String] = {
+    ssh("uptime")
+  }
+}
 
 object Container {
   def apply(uri: String, config: Map[String, String]) = new Container(uri, config)

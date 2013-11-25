@@ -14,7 +14,8 @@ import actors.HostMonitorActor.HostInfo
 
 object HostMonitorActor {
 
-  type HostInfo = Map[String, Map[String, Seq[String]]]
+  //type HostInfo = Map[String, Map[String, Seq[String]]]
+  case class HostInfo(name:String, load: String, containers: Map[String, Seq[String]])
   val actor = Akka.system.actorOf(Props(new HostMonitorActor(300)))
 }
 
@@ -24,7 +25,7 @@ class HostMonitorActor(interval: Int) extends Actor {
 
   protected val log = Logger(s"application.$this.getClass.getName")
 
-  protected var hostInfo : Option[HostInfo] = None
+  protected var hosts : Option[Seq[HostInfo]] = None
 
   protected var iter : Option[Iterator[String]] = None
 
@@ -34,7 +35,7 @@ class HostMonitorActor(interval: Int) extends Actor {
 
     case GetHostInfo => {
       log.debug(s"$sender asking for data...")
-      sender ! hostInfo.getOrElse(Map[String, Map[String, Seq[String]]]())
+      sender ! hosts.getOrElse(Seq.empty[HostInfo])
     }
     case Update => {
 
@@ -44,13 +45,14 @@ class HostMonitorActor(interval: Int) extends Actor {
 
         log.debug(s"Updating data for $host...")
 
-        val c = new LxcHost(host).containers
+        val h = new LxcHost(host)
+        val c = h.containers
         val ctrs = Map[String, Seq[String]](
             "running" -> c.running.map(_.uri),
             "frozen"  -> c.frozen.map(_.uri),
             "stopped" -> c.stopped.map(_.uri))
 
-        hostInfo = Some(hostInfo.get ++: Map(host -> ctrs))
+        hosts = Some(hosts.get ++: Seq(HostInfo(host, h.load.get, ctrs)))
 
         if (!iter.get.hasNext) {
           // schedule an update
@@ -60,7 +62,7 @@ class HostMonitorActor(interval: Int) extends Actor {
         }
       } else {
         iter = Some(Conf.hosts.iterator)
-        hostInfo = Some(Map.empty[String, Map[String, Seq[String]]])
+        hosts = Some(Seq.empty[HostInfo])
         self ! Update
       }
     }
