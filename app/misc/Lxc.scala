@@ -149,6 +149,7 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
 
   private def detectUri(container: String) : Option[String] = {
     try {
+      // TODO: if there are multiple IPs, take the first working one
       val ip = InetAddress.getByName(ssh("cat /var/lib/lxc/%s/rootfs/etc/network/interfaces".format(container))
         .getOrElse("")
         .split("\n")

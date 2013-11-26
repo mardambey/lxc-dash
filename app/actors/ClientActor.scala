@@ -13,13 +13,9 @@ import play.api.libs.concurrent.Execution.Implicits._
 
 import scala.concurrent.duration._
 
-import misc.LxcHost.stringToLxcHost
-import misc.Conf
 import akka.util.Timeout
 import akka.pattern.ask
-import scala.concurrent.{Await, Future}
-
-import actors.HostMonitorActor.HostInfo
+import scala.concurrent.Await
 
 class ClientActor(userId: Int, interval: Int = 250) extends Actor {
 
@@ -44,7 +40,7 @@ class ClientActor(userId: Int, interval: Int = 250) extends Actor {
       implicit val sshUser = "root"
       implicit val timeout = Timeout(3 seconds)
 
-      val f = ask(HostMonitorActor.actor, GetHostInfo).mapTo[Seq[HostInfo]]
+      val f = ask(MonitorActor.actor, GetInfo).mapTo[Seq[HostInfo]]
       val data = Await.result(f, timeout.duration)
 
       val nonEmptyData = data.map(hostInfo => {

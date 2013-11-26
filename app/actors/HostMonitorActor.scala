@@ -1,32 +1,59 @@
 package actors
 
-import akka.actor.{Cancellable, Props, Actor}
+import akka.actor.{ActorRef, Cancellable, Props, Actor}
 
 import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits._
 
 import scala.concurrent.duration._
 
-import misc.{Conf, LxcHost}
+import misc.LxcHost
 
 import play.libs.Akka
-import actors.HostMonitorActor.HostInfo
+
+object MonitorActor {
+
+  val actor = Akka.system.actorOf(Props(new MonitorActor(300)))
+}
+
+class MonitorActor(interval: Int) extends Actor {
+
+  protected val log = Logger(s"application.$this.getClass.getName")
+
+  protected var hosts = Map.empty[String, ActorRef]
+
+  protected var hostInfos = Map.empty[String, HostInfo]
+
+  override def receive = {
+
+    case AddHost(host) => {
+      val actor = HostMonitorActor(interval, host, Some(self))
+      actor ! Update
+      hosts = hosts + (host -> actor)
+    }
+
+    case GetInfo => {
+      sender ! hostInfos.values.toSeq
+    }
+
+    case hostInfo:HostInfo => {
+      hostInfos = hostInfos + (hostInfo.name -> hostInfo)
+    }
+  }
+}
 
 object HostMonitorActor {
 
-  case class HostInfo(name:String, load: String, containers: Map[String, Seq[String]])
-  val actor = Akka.system.actorOf(Props(new HostMonitorActor(300)))
+  def apply(interval: Int, host: String, listener: Option[ActorRef] = None) = Akka.system.actorOf(Props(new HostMonitorActor(interval, host, listener)))
 }
 
-class HostMonitorActor(interval: Int) extends Actor {
+class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] = None) extends Actor {
 
   protected var cancellable: Option[Cancellable] = None
 
   protected val log = Logger(s"application.$this.getClass.getName")
 
-  protected var hosts : Option[Seq[HostInfo]] = None
-
-  protected var iter : Option[Iterator[String]] = None
+  protected var hostInfo: Option[HostInfo] = None
 
   implicit val sshUser = "root"
 
@@ -34,36 +61,26 @@ class HostMonitorActor(interval: Int) extends Actor {
 
     case GetHostInfo => {
       log.debug(s"$sender asking for data...")
-      sender ! hosts.getOrElse(Seq.empty[HostInfo])
+      sender ! hostInfo
     }
+
     case Update => {
 
-      if (iter.isDefined && iter.get.hasNext) {
+      log.debug(s"Updating data for $host...")
 
-        val host = iter.get.next()
+      val h = new LxcHost(host)
+      val c = h.containers
+      val ctrs = Map[String, Seq[String]](
+        "running" -> c.running.map(_.uri),
+        "frozen"  -> c.frozen.map(_.uri),
+        "stopped" -> c.stopped.map(_.uri))
 
-        log.debug(s"Updating data for $host...")
+      hostInfo = Some(HostInfo(host, h.load.get, ctrs))
+      if (listener.isDefined) listener.get ! hostInfo.get
+      listener.map(_ ! hostInfo.get)
 
-        val h = new LxcHost(host)
-        val c = h.containers
-        val ctrs = Map[String, Seq[String]](
-            "running" -> c.running.map(_.uri),
-            "frozen"  -> c.frozen.map(_.uri),
-            "stopped" -> c.stopped.map(_.uri))
-
-        hosts = Some(hosts.get ++: Seq(HostInfo(host, h.load.get, ctrs)))
-
-        if (!iter.get.hasNext) {
-          // schedule an update
-          cancellable = Some(context.system.scheduler.scheduleOnce(interval second, self, Update))
-        } else {
-          self ! Update
-        }
-      } else {
-        iter = Some(Conf.hosts.iterator)
-        hosts = Some(Seq.empty[HostInfo])
-        self ! Update
-      }
+      // schedule an update
+      cancellable = Some(context.system.scheduler.scheduleOnce(interval second, self, Update))
     }
   }
 
@@ -73,5 +90,11 @@ class HostMonitorActor(interval: Int) extends Actor {
 }
 
 sealed trait HostMonitorMessage
-case object Update extends HostMonitorMessage
 case object GetHostInfo extends HostMonitorMessage
+
+sealed trait MonitorMessage
+case class AddHost(host: String) extends MonitorMessage
+case object Update extends MonitorMessage
+case object GetInfo extends MonitorMessage
+
+case class HostInfo(name:String, load: String, containers: Map[String, Seq[String]])
