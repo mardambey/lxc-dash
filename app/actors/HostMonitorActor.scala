@@ -10,6 +10,7 @@ import scala.concurrent.duration._
 import misc.LxcHost
 
 import play.libs.Akka
+import scala.collection.immutable.SortedMap
 
 object MonitorActor {
 
@@ -32,7 +33,7 @@ class MonitorActor(interval: Int) extends Actor {
 
   protected var hosts = Map.empty[String, ActorRef]
 
-  protected var hostInfos = Map.empty[String, HostInfo]
+  protected var hostInfos = SortedMap.empty[String, HostInfo]
 
   override def receive = {
 
