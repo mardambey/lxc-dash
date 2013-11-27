@@ -16,6 +16,16 @@ object MonitorActor {
   val actor = Akka.system.actorOf(Props(new MonitorActor(300)))
 }
 
+/**
+ * Keeps track of several HostMonitorActor instances asking them
+ * to report host information back to it at a specified interval.
+ *
+ * This class can then hand the host information in one shot to
+ * clients.
+ *
+ * @param interval sets how often the HostMonitorActor should
+ *                 fetch information from it's host.
+ */
 class MonitorActor(interval: Int) extends Actor {
 
   protected val log = Logger(s"application.$this.getClass.getName")
@@ -47,6 +57,13 @@ object HostMonitorActor {
   def apply(interval: Int, host: String, listener: Option[ActorRef] = None) = Akka.system.actorOf(Props(new HostMonitorActor(interval, host, listener)))
 }
 
+/**
+ * Periodically fetches information about a specific host's containers.
+ *
+ * @param interval sets how often to fetch information from the host
+ * @param host the host to fetch information from
+ * @param listener optional, if passed, host information is reported back to it as HostInfo
+ */
 class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] = None) extends Actor {
 
   protected var cancellable: Option[Cancellable] = None
