@@ -147,22 +147,31 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
     catch { case t:Throwable => false }
   }
 
+  private def detectHostname(container: String) : Option[String] = {
+    if (ping(container)) {
+      Some(container)
+    } else {
+      detectUri(container)
+    }
+  }
+
   private def detectUri(container: String) : Option[String] = {
     try {
-      // TODO: if there are multiple IPs, take the first working one
-      val ip = InetAddress.getByName(ssh("cat /var/lib/lxc/%s/rootfs/etc/network/interfaces".format(container))
+      val ip = ssh("cat /var/lib/lxc/%s/rootfs/etc/network/interfaces".format(container))
         .getOrElse("")
         .split("\n")
         .map(_.trim)
         .filter(!_.isEmpty)
         .filter(!_.startsWith("#"))
-        .filter(_.contains("address"))
+        .filter(_.startsWith("address"))
         .map(_.split(" "))
         .filter(_.size == 2)
         .map(_(1).trim)
-        .head)
+        .dropWhile(!ping(_))
+        .headOption
+        .map(InetAddress.getByName(_))
 
-      Some(ip.getHostName)
+      ip.map(_.getHostName)
     } catch {
       case t:Throwable => None
     }
@@ -188,14 +197,7 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
         val i = info(container)
 
         // try to figure out container's hostname
-
-        val uri = if (ping(container)) {
-          container
-        } else if (ping(i.getOrElse("lxc.utsname", ""))) {
-          i.get("lxc.utsname").get
-        } else {
-          detectUri(container).getOrElse(container)
-        }
+        val uri = detectHostname(container).getOrElse(container)
 
         curBuf.map(_ += Container(container, uri, i)) }
     })
