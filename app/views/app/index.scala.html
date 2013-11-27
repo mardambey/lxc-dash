@@ -5,8 +5,10 @@
         <div class="col-sm-6 col-md-4" ng-repeat="container in containers">
             <div class="thumbnail">
                 <!-- TODO: on mouse over always show container name -->
-                <h4>{{container}}</h4>
+                <h4>{{container.name}}</h4>
                 <span class="label label-{{state | stateToLabel}}">{{state}}</span>
+                <span class="label label-default">{{container.ip || "no ip"}}</span>
+                <span class="label label-default">{{container.hostname || "no hostname"}}</span>
             </div>
         </div>
     </div>

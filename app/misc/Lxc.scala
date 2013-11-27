@@ -83,15 +83,15 @@ class Remote(uri: String)(implicit sshUser: String = "") {
   }
 
   def load : Option[String] = {
-    ssh("uptime")
+    ssh("uptime").map(_.trim)
   }
 }
 
 object Container {
-  def apply(name: String, uri: String, config: Map[String, String]) = new Container(name, uri, config)
+  def apply(name: String, hostname: String, ip: String, config: Map[String, String]) = new Container(name, hostname, ip, config)
 }
 
-class Container(name: String, val uri: String, val config: Map[String, String]) extends Remote(uri) {
+class Container(val name: String, val hostname: String, val ip: String, val config: Map[String, String]) extends Remote(ip) {
 }
 
 case class LxcList(
@@ -147,17 +147,33 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
     catch { case t:Throwable => false }
   }
 
-  private def detectHostname(container: String) : Option[String] = {
-    if (ping(container)) {
-      Some(container)
-    } else {
-      detectUri(container)
+  private val alpha = """[a-zA-Z]""".r
+
+  private def resolveHost(host: String) : Option[String] = try { Some(InetAddress.getByName(host).getHostAddress) } catch {
+    case t:Throwable => None
+  }
+
+  private def reverseLookupIp(ip: String) : Option[String] = try {
+    val h = InetAddress.getByName(ip).getHostName
+
+    if (h.equals(ip)) None
+    else Some(h)
+
+  } catch {
+    case t:Throwable => None
+  }
+
+  private def detectHostnameIp(container: String) : Option[HostnameIp] = {
+
+    container match {
+      case alpha(_) if (ping(container)) => Some(HostnameIp(container, resolveHost(container).getOrElse("")))
+      case _ => detectHostnameIpFromIp(container)
     }
   }
 
-  private def detectUri(container: String) : Option[String] = {
+  private def detectHostnameIpFromIp(container: String) : Option[HostnameIp] = {
     try {
-      val ip = ssh("cat /var/lib/lxc/%s/rootfs/etc/network/interfaces".format(container))
+      val ip : Option[HostnameIp] = ssh("cat /var/lib/lxc/%s/rootfs/etc/network/interfaces".format(container))
         .getOrElse("")
         .split("\n")
         .map(_.trim)
@@ -169,9 +185,9 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
         .map(_(1).trim)
         .dropWhile(!ping(_))
         .headOption
-        .map(InetAddress.getByName(_))
+        .map(i => HostnameIp(reverseLookupIp(i).getOrElse(""), i))
 
-      ip.map(_.getHostName)
+      ip
     } catch {
       case t:Throwable => None
     }
@@ -197,9 +213,9 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
         val i = info(container)
 
         // try to figure out container's hostname
-        val uri = detectHostname(container).getOrElse(container)
+        val hostIp = detectHostnameIp(container).getOrElse(HostnameIp("", ""))
 
-        curBuf.map(_ += Container(container, uri, i)) }
+        curBuf.map(_ += Container(container, hostIp.hostname, hostIp.ip, i)) }
     })
     
     LxcList(running, frozen, stopped)
@@ -220,3 +236,4 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
 //  }
 //)
 
+case class HostnameIp(hostname: String, ip: String)

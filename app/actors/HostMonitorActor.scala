@@ -88,10 +88,29 @@ class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] =
 
       val h = new LxcHost(host)
       val c = h.containers
-      val ctrs = Map[String, Seq[String]](
-        "running" -> c.running.map(_.uri),
-        "frozen"  -> c.frozen.map(_.uri),
-        "stopped" -> c.stopped.map(_.uri))
+
+      val running = c.running.map(ctr => Map(
+        "name" -> ctr.name,
+        "ip"  -> ctr.ip,
+        "hostname" -> ctr.hostname
+      ))
+
+      val stopped = c.stopped.map(ctr => Map(
+        "name" -> ctr.name,
+        "ip"  -> ctr.ip,
+        "hostname" -> ctr.hostname
+      ))
+
+      val frozen = c.frozen.map(ctr => Map(
+        "name" -> ctr.name,
+        "ip"  -> ctr.ip,
+        "hostname" -> ctr.hostname
+      ))
+
+      val ctrs = Map[String, Seq[Map[String, String]]](
+        "running" -> running,
+        "frozen"  -> frozen,
+        "stopped" -> stopped)
 
       hostInfo = Some(HostInfo(host, h.load.get, ctrs))
       if (listener.isDefined) listener.get ! hostInfo.get
@@ -115,4 +134,4 @@ case class AddHost(host: String) extends MonitorMessage
 case object Update extends MonitorMessage
 case object GetInfo extends MonitorMessage
 
-case class HostInfo(name:String, load: String, containers: Map[String, Seq[String]])
+case class HostInfo(name:String, load: String, containers: Map[String, Seq[Map[String, String]]])
