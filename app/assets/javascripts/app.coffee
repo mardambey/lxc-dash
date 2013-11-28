@@ -32,7 +32,7 @@ utils.filter('stateToLabel',  ->
             for state in ["running", "frozen", "stopped"] when host.containers[state]
                 for container in host.containers[state]
                     c = $.extend(true, {}, host)
-                    c.host = container.name
+                    c.host = container.name + " - " + host.host
                     $scope.curHosts.push c
       )
 
