@@ -27,6 +27,13 @@ utils.filter('stateToLabel',  ->
         console.log "received : #{msg.data}"
         $scope.hosts = JSON.parse(msg.data)
         $scope.curHosts = $scope.hosts
+
+        for host in $scope.hosts
+            for state in ["running", "frozen", "stopped"] when host.containers[state]
+                for container in host.containers[state]
+                    c = $.extend(true, {}, host)
+                    c.host = container.name
+                    $scope.curHosts.push c
       )
 
   startWS()
