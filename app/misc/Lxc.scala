@@ -6,39 +6,8 @@ object Conf {
   val sshUser = "root"
 
   val hosts = List(
-    "blackhowler.gene",
+    "localhost",
     "turkish")
-//    "localhost")
-//    "hydrogen",
-//    "helium",
-//    "moorland",
-//    "shrubland",
-//    "grassland",
-//    "woodland",
-//    "lxchost-01",
-//    "lxchost-02",
-//    "brook",
-//    "canton",
-//    "crater",
-//    "creek",
-//    "desert",
-//    "field",
-//    "forest",
-//    "grove",
-//    "hamlet",
-//    "lake",
-//    "mountain",
-//    "prairie",
-//    "river",
-//    "steppe",
-//    "stream",
-//    "taiga",
-//    "tarn",
-//    "tundra",
-//    "valley",
-//    "volcano")
-
-  def currentKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrxsjHqytdf4xDSPUWv/oSdieTLfFvQrdYBbCgdLkVL6Q5cXCoWl66BkTr5Rkf+wEfutaCru8sB2eUZKFWvp99+0IU20h5dAz4Q3yPqyUq8KQBXOvh32DmoUY8DVH+MxzoZ+y/RDmMUgVvtqaMlrFR0rOs9yRiStqDidKQYd/LaiW1H7sapbLyrwyiiCQ/7qWlHuoBVLatMZpHfomGP4BU9OwxK4/xY0AE3Fjz1zcP9Z8zPVizmQjpfREkGGM5I/wEpc5iozUpygewQw3ePNxXx7n3DLtdy1LJEaIPDqhHe+NkHNQfj1+Is9aEmp1i4rpSCcRlsbE1ZbV1HslV5RVl hisham@turkish"
 }
 
 import scala.sys.process._
@@ -221,19 +190,5 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
     LxcList(running, frozen, stopped)
   }
 }
-
-//// implicits
-//import LxcHost._
-//
-//// test code below
-//
-//implicit val sshUser = "root"
-//
-//Conf.hosts.foreach(
-//  host => {
-//    println (host)
-//    host.containers.running.head.config.foreach(print)
-//  }
-//)
 
 case class HostnameIp(hostname: String, ip: String)
