@@ -1,16 +1,19 @@
 package misc
 
-import java.net.InetAddress
-
-object Conf {
-  val sshUser = "root"
-
-  val hosts = List(
-    "localhost",
-    "turkish")
-}
-
 import scala.sys.process._
+import java.net.InetAddress
+import scala.collection.JavaConverters._
+import play.api.{Logger, Play}
+
+object LxcConf {
+
+  protected val log = Logger("application." + this.getClass.getName)
+  protected val LXC_USERNAME = "application.lxc.username"
+  protected val LXC_HOSTS    = "application.lxc.hosts"
+
+  val sshUser = Play.current.configuration.getString(LXC_USERNAME).get
+  val hosts   = Play.current.configuration.getStringList(LXC_HOSTS).map(_.asScala.toList).get
+}
 
 object SSH {
 

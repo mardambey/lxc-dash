@@ -3,12 +3,12 @@ package misc
 import play.api._
 import play.api.mvc._
 import play.api.mvc.Results._
-import actors.{MonitorActor, AddHost, Update, HostMonitorActor}
+import actors.{MonitorActor, AddHost}
 
 object Global extends GlobalSettings {
 
   override def onStart(app: Application) {
-    Conf.hosts.foreach(MonitorActor.actor ! AddHost(_))
+    LxcConf.hosts.foreach(MonitorActor.actor ! AddHost(_))
   }
 
   override def onHandlerNotFound(request: RequestHeader) = {
