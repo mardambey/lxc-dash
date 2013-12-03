@@ -8,11 +8,16 @@ import play.api.{Logger, Play}
 object LxcConf {
 
   protected val log = Logger("application." + this.getClass.getName)
-  protected val LXC_USERNAME = "application.lxc.username"
-  protected val LXC_HOSTS    = "application.lxc.hosts"
+
+  protected val LXC_USERNAME   = "application.lxc.username"
+  protected val LXC_HOSTS      = "application.lxc.hosts"
+  protected val LXC_INTERFACES = "application.lxc.container.interfaces"
+  protected val LXC_CONFIG     = "application.lxc.container.config"
 
   val sshUser = Play.current.configuration.getString(LXC_USERNAME).get
   val hosts   = Play.current.configuration.getStringList(LXC_HOSTS).map(_.asScala.toList).get
+  val interfaces = Play.current.configuration.getString(LXC_INTERFACES).get
+  val config = Play.current.configuration.getString(LXC_CONFIG).get
 }
 
 object SSH {
@@ -94,7 +99,7 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
   def info(container: String) : Map[String, String] = {
 
     try {
-      val cmd : String = "cat /var/lib/lxc/%s/config".format(container)
+      val cmd : String = LxcConf.config.format(container)
       ssh(cmd)
         .getOrElse("")
         .split("\n")
@@ -119,7 +124,7 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
     catch { case t:Throwable => false }
   }
 
-  private val alpha = """[a-zA-Z]""".r
+  private val Alpha = """[a-zA-Z]""".r
 
   private def resolveHost(host: String) : Option[String] = try { Some(InetAddress.getByName(host).getHostAddress) } catch {
     case t:Throwable => None
@@ -138,14 +143,15 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
   private def detectHostnameIp(container: String) : Option[HostnameIp] = {
 
     container match {
-      case alpha(_) if (ping(container)) => Some(HostnameIp(container, resolveHost(container).getOrElse("")))
+      case Alpha(_) if (ping(container)) => Some(HostnameIp(container, resolveHost(container).getOrElse("")))
       case _ => detectHostnameIpFromIp(container)
     }
   }
 
   private def detectHostnameIpFromIp(container: String) : Option[HostnameIp] = {
     try {
-      val ip : Option[HostnameIp] = ssh("cat /var/lib/lxc/%s/rootfs/etc/network/interfaces".format(container))
+      val i = LxcConf.interfaces.format(container)
+      val ip : Option[HostnameIp] = ssh(s"cat $i")
         .getOrElse("")
         .split("\n")
         .map(_.trim)
