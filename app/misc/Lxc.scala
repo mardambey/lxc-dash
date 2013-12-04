@@ -13,11 +13,13 @@ object LxcConf {
   protected val LXC_HOSTS      = "application.lxc.hosts"
   protected val LXC_INTERFACES = "application.lxc.container.interfaces"
   protected val LXC_CONFIG     = "application.lxc.container.config"
+  protected val LXC_CPUACCT    = "application.lxc.container.cpuacct"
 
   val sshUser = Play.current.configuration.getString(LXC_USERNAME).get
   val hosts   = Play.current.configuration.getStringList(LXC_HOSTS).map(_.asScala.toList).get
   val interfaces = Play.current.configuration.getString(LXC_INTERFACES).get
   val config = Play.current.configuration.getString(LXC_CONFIG).get
+  val cpuacct = Play.current.configuration.getString(LXC_CPUACCT).get
 }
 
 object SSH {
@@ -64,11 +66,28 @@ class Remote(uri: String)(implicit sshUser: String = "") {
   }
 }
 
+case class CpuAcct(user: Long, system: Long)
+
 object Container {
-  def apply(name: String, hostname: String, ip: String, config: Map[String, String]) = new Container(name, hostname, ip, config)
+  def apply(name: String, hostname: String, ip: String, config: Map[String, String], host: LxcHost) = new Container(name, hostname, ip, config, host)
+
 }
 
-class Container(val name: String, val hostname: String, val ip: String, val config: Map[String, String]) extends Remote(ip) {
+class Container(val name: String, val hostname: String, val ip: String, val config: Map[String, String], host:LxcHost) extends Remote(ip) {
+
+  def cpuacct : CpuAcct = {
+    val path = LxcConf.cpuacct
+    val values = host.ssh(s"cat $path/$name/cpuacct.stat")
+      .getOrElse("")
+      .split("\n")
+      .map(_.trim)
+      .map(_.split(" "))
+      .filter(_.size == 2)
+      .map(t => t(0).trim -> t(1).trim.toLong)
+      .toMap
+
+    CpuAcct(values.getOrElse("user", 0), values.getOrElse("system", 0))
+  }
 }
 
 case class LxcList(
@@ -143,7 +162,7 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
   private def detectHostnameIp(container: String) : Option[HostnameIp] = {
 
     container match {
-      case Alpha(_) if (ping(container)) => Some(HostnameIp(container, resolveHost(container).getOrElse("")))
+      case Alpha(_) if ping(container) => Some(HostnameIp(container, resolveHost(container).getOrElse("")))
       case _ => detectHostnameIpFromIp(container)
     }
   }
@@ -190,10 +209,10 @@ class LxcHost(val uri: String)(implicit sshUser: String = "") extends Remote(uri
       case container => {
         val i = info(container)
 
-        // try to figure out container's hostname
+        // try to figure out container's hostname and IP
         val hostIp = detectHostnameIp(container).getOrElse(HostnameIp("", ""))
 
-        curBuf.map(_ += Container(container, hostIp.hostname, hostIp.ip, i)) }
+        curBuf.map(_ += Container(container, hostIp.hostname, hostIp.ip, i, this)) }
     })
     
     LxcList(running, frozen, stopped)
