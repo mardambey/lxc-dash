@@ -14,12 +14,14 @@ object LxcConf {
   protected val LXC_INTERFACES = "application.lxc.container.interfaces"
   protected val LXC_CONFIG     = "application.lxc.container.config"
   protected val LXC_CPUACCT    = "application.lxc.container.cpuacct"
+  protected val LXC_MEMORY     = "application.lxc.container.memory"
 
   val sshUser = Play.current.configuration.getString(LXC_USERNAME).get
   val hosts   = Play.current.configuration.getStringList(LXC_HOSTS).map(_.asScala.toList).get
   val interfaces = Play.current.configuration.getString(LXC_INTERFACES).get
   val config = Play.current.configuration.getString(LXC_CONFIG).get
   val cpuacct = Play.current.configuration.getString(LXC_CPUACCT).get
+  val memory = Play.current.configuration.getString(LXC_MEMORY).get
 }
 
 object SSH {
@@ -67,6 +69,7 @@ class Remote(uri: String)(implicit sshUser: String = "") {
 }
 
 case class CpuAcct(user: Long, system: Long)
+case class Memory(totalRss: Long, totalCache: Long, totalSwap: Long)
 
 object Container {
   def apply(name: String, hostname: String, ip: String, config: Map[String, String], host: LxcHost) = new Container(name, hostname, ip, config, host)
@@ -77,16 +80,24 @@ class Container(val name: String, val hostname: String, val ip: String, val conf
 
   def cpuacct : CpuAcct = {
     val path = LxcConf.cpuacct
-    val values = host.ssh(s"cat $path/$name/cpuacct.stat")
-      .getOrElse("")
+    val values = parseLinesToMap(host.ssh(s"cat $path/$name/cpuacct.stat").getOrElse(""))
+    CpuAcct(values.getOrElse("user", 0), values.getOrElse("system", 0))
+  }
+
+  def memory : Memory = {
+    val path = LxcConf.memory
+    val values = parseLinesToMap(host.ssh(s"cat $path/$name/memory.stat").getOrElse(""))
+    Memory(values.getOrElse("total_rss", 0), values.getOrElse("total_cache", 0), values.getOrElse("total_swap", 0))
+  }
+
+  protected def parseLinesToMap(lines: String) : Map[String, Long] = {
+    lines
       .split("\n")
       .map(_.trim)
       .map(_.split(" "))
       .filter(_.size == 2)
       .map(t => t(0).trim -> t(1).trim.toLong)
       .toMap
-
-    CpuAcct(values.getOrElse("user", 0), values.getOrElse("system", 0))
   }
 }
 
