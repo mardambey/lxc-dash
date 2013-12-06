@@ -92,19 +92,32 @@ class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] =
       val running = c.running.map(ctr => Map(
         "name" -> ctr.name,
         "ip"  -> ctr.ip,
-        "hostname" -> ctr.hostname
+        "hostname" -> ctr.hostname,
+        "cpuUser" -> ctr.cpuacct.user.toString,
+        "cpuSystem" -> ctr.cpuacct.system.toString,
+        "totalCache" -> ctr.memory.totalCache.toString,
+        "totalRss" -> ctr.memory.totalRss.toString
       ))
 
       val stopped = c.stopped.map(ctr => Map(
         "name" -> ctr.name,
         "ip"  -> ctr.ip,
-        "hostname" -> ctr.hostname
+        "hostname" -> ctr.hostname,
+        "cpuUser" -> ctr.cpuacct.user.toString,
+        "cpuSystem" -> ctr.cpuacct.system.toString,
+        "totalCache" -> ctr.memory.totalCache.toString,
+        "totalRss" -> ctr.memory.totalRss.toString
       ))
 
       val frozen = c.frozen.map(ctr => Map(
         "name" -> ctr.name,
         "ip"  -> ctr.ip,
-        "hostname" -> ctr.hostname
+        "hostname" -> ctr.hostname,
+        "cpuUser" -> ctr.cpuacct.user.toString,
+        "cpuSystem" -> ctr.cpuacct.system.toString,
+        "totalCache" -> ctr.memory.totalCache.toString,
+        "totalRss" -> ctr.memory.totalRss.toString,
+        "totalSwap" -> ctr.memory.totalSwap.toString
       ))
 
       val ctrs = Map[String, Seq[Map[String, String]]](
