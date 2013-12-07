@@ -105,7 +105,7 @@ class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] =
         )))
       })).toMap
 
-      hostInfo = Some(HostInfo(host, h.load.get, ctrs))
+      hostInfo = Some(HostInfo(host, h.load.get, ctrs, System.currentTimeMillis()/1000))
       if (listener.isDefined) listener.get ! hostInfo.get
       listener.map(_ ! hostInfo.get)
 
@@ -127,4 +127,4 @@ case class AddHost(host: String) extends MonitorMessage
 case object Update extends MonitorMessage
 case object GetInfo extends MonitorMessage
 
-case class HostInfo(name:String, load: String, containers: Map[String, Seq[Map[String, String]]])
+case class HostInfo(name:String, load: String, containers: Map[String, Seq[Map[String, String]]], lastUpdate: Long)

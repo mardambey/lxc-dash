@@ -55,6 +55,7 @@ class ClientActor(userId: Int, interval: Int = 250) extends Actor {
         Json.obj(
           "host" -> hostInfo.name,
           "load" -> hostInfo.load,
+          "lastUpdate" -> hostInfo.lastUpdate,
           "containers" -> goodStates
         )
       })
