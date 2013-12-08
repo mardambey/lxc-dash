@@ -7,14 +7,14 @@ import play.api.libs.concurrent.Execution.Implicits._
 
 import scala.concurrent.duration._
 
-import misc.LxcHost
+import misc.{CpuAcct, Memory, LxcHost}
 
 import play.libs.Akka
 import scala.collection.immutable.SortedMap
 
 object MonitorActor {
 
-  val actor = Akka.system.actorOf(Props(new MonitorActor(300)))
+  val actor = Akka.system.actorOf(Props(new MonitorActor(30)))
 }
 
 /**
@@ -73,6 +73,8 @@ class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] =
 
   protected var hostInfo: Option[HostInfo] = None
 
+  protected val containerCpuMem = new scala.collection.mutable.HashMap[String, CircularBuffer[ContainerCpuMemory]]
+
   implicit val sshUser = "root"
 
   override def receive = {
@@ -89,20 +91,25 @@ class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] =
       val h = new LxcHost(host)
       val c = h.containers
 
-      val ctrs: Map[String, Seq[Map[String, String]]] = List(
+      val ctrs: Map[String, Seq[ContainerInfo]] = List(
         ("running", c.running),
         ("stopped", c.stopped),
         ("frozen", c.frozen))
         .map((t => {
-        (t._1 -> t._2.map(ctr => Map(
-          "name" -> ctr.name,
-          "ip"  -> ctr.ip,
-          "hostname" -> ctr.hostname,
-          "cpuUser" -> ctr.cpuacct.user.toString,
-          "cpuSystem" -> ctr.cpuacct.system.toString,
-          "totalCache" -> ctr.memory.totalCache.toString,
-          "totalRss" -> ctr.memory.totalRss.toString
-        )))
+        (t._1 -> t._2.map(ctr => {
+          val buf = containerCpuMem.getOrElseUpdate(ctr.name, CircularBuffer[ContainerCpuMemory](10))
+          buf.push(ContainerCpuMemory(ctr.cpuacct, ctr.memory, System.currentTimeMillis()))
+
+          ContainerInfo(
+            ctr.name,
+            ctr.ip,
+            ctr.hostname,
+            buf.getAll.filter(_ != null).map(info => Map("time" -> info.time, "value" -> info.cpuAcct.user)),
+            buf.getAll.filter(_ != null)map(info => Map("time" -> info.time, "value" -> info.cpuAcct.system)),
+            buf.getAll.filter(_ != null)map(info => Map("time" -> info.time, "value" -> info.memory.totalRss)),
+            buf.getAll.filter(_ != null)map(info => Map("time" -> info.time, "value" -> info.memory.totalCache)),
+            buf.getAll.filter(_ != null)map(info => Map("time" -> info.time, "value" -> info.memory.totalSwap)))
+        }))
       })).toMap
 
       hostInfo = Some(HostInfo(host, h.load.get, ctrs, System.currentTimeMillis()/1000))
@@ -123,8 +130,46 @@ sealed trait HostMonitorMessage
 case object GetHostInfo extends HostMonitorMessage
 
 sealed trait MonitorMessage
-case class AddHost(host: String) extends MonitorMessage
 case object Update extends MonitorMessage
 case object GetInfo extends MonitorMessage
+case class AddHost(host: String) extends MonitorMessage
 
-case class HostInfo(name:String, load: String, containers: Map[String, Seq[Map[String, String]]], lastUpdate: Long)
+case class ContainerInfo(
+  name: String,
+  ip: String,
+  hostname: String,
+  cpuUser: Array[Map[String, Long]],
+  cpuSystem: Array[Map[String, Long]],
+  memRss: Array[Map[String, Long]],
+  memCache: Array[Map[String, Long]],
+  memSwap: Array[Map[String, Long]])
+
+case class HostInfo(
+  name:String,
+  load: String,
+  containers: Map[String, Seq[ContainerInfo]],
+  lastUpdate: Long)
+
+case class ContainerCpuMemory(
+  cpuAcct: CpuAcct,
+  memory: Memory,
+  time: Long)
+
+case class CircularBuffer[T](size: Int)(implicit mf: Manifest[T]) {
+
+  private val arr = new Array[T](size)
+
+  private var cursor = 0
+
+  def push(value: T) {
+    arr(cursor) = value
+    cursor += 1
+    cursor %= size
+  }
+
+  def getAll: Array[T] = {
+    val copy = new Array[T](size)
+    arr.copyToArray(copy)
+    copy
+  }
+}

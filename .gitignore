@@ -19,3 +19,4 @@ dist
 public/images/screens/
 project/activator*
 custom.conf
+project/PlayAkkaAngularWebSocket-build.iml

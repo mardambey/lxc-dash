@@ -1,6 +1,11 @@
 utils = window.angular.module('utils' , [])
 
-utils.filter('stateToLabel',  ->
+
+utils.filter('dot2Uscore',  ->
+  (str) ->
+    str.replace(/\./g, "_")
+
+).filter('stateToLabel',  ->
   (state) ->
     if (state == "running")
       "success"
@@ -17,6 +22,26 @@ utils.filter('stateToLabel',  ->
   $scope.hosts = undefined
   $scope.curHosts = undefined
   $scope.curHost = undefined
+
+  $scope.$watch('curHost', ->
+    cb = ->
+        return if not $scope.curHost
+        running = $scope.curHost.containers["running"]
+
+        for ctr in running
+            cpuData = []
+            for c in ctr.cpuSystem
+                cpuData.push(c.value)
+
+            memData = []
+            for c in ctr.cpuSystem
+                memData.push(c.value)
+
+            $(".cpugraph-#{ctr.name.replace(/\./g, '_')}").sparkline(cpuData, {type: "bar", barColor: "green"})
+            $(".memgraph-#{ctr.name.replace(/\./g, '_')}").sparkline(memData, {type: "bar", barColor: "blue"})
+
+    setTimeout cb, 100
+  , true)
 
   startWS = ->
     wsUrl = jsRoutes.controllers.AppController.indexWS().webSocketURL()
@@ -38,6 +63,6 @@ utils.filter('stateToLabel',  ->
 
   startWS()
 
-) 
+)
 
 window.angular.module('app' , ['utils'])

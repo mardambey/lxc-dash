@@ -1,6 +1,7 @@
 package actors
 
 import play.api.libs.json._
+import play.api.libs.functional.syntax._
 
 import akka.actor.{PoisonPill, Actor}
 
@@ -30,6 +31,17 @@ class ClientActor(userId: Int, interval: Int = 250) extends Actor {
     val broadcast: (Enumerator[JsValue], Channel[JsValue]) = Concurrent.broadcast[JsValue]
     UserChannel(userId, broadcast._1, broadcast._2)
   }
+
+  implicit val containerInfoWrites = (
+    (__ \ "name").write[String] and
+    (__ \ "ip").write[String] and
+    (__ \ "hostname").write[String] and
+    (__ \ "cpuUser").write[Array[Map[String, Long]]] and
+    (__ \ "cpuSystem").write[Array[Map[String, Long]]] and
+    (__ \ "memRss").write[Array[Map[String, Long]]] and
+    (__ \ "memCache").write[Array[Map[String, Long]]] and
+    (__ \ "memSwap").write[Array[Map[String, Long]]]
+  )(unlift(ContainerInfo.unapply))
 
   override def receive = {
 
