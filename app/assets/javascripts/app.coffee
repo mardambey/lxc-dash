@@ -30,15 +30,21 @@ utils.filter('dot2Uscore',  ->
 
         for ctr in running
             cpuData = []
-            for c in ctr.cpuSystem
-                cpuData.push(c.value)
+            for i in [0...ctr.cpuSystem.length - 1]
+                usageDiff = (ctr.cpuSystem[i+1].value - ctr.cpuSystem[i].value) / 1024 / 1024
+                value = [ctr.cpuSystem[i+1].time, usageDiff]
+                cpuData.push(value)
+                console.log(ctr.cpuSystem[i])
 
             memData = []
             for c in ctr.cpuSystem
                 memData.push(c.value)
 
-            $(".cpugraph-#{ctr.name.replace(/\./g, '_')}").sparkline(cpuData, {type: "bar", barColor: "green"})
-            $(".memgraph-#{ctr.name.replace(/\./g, '_')}").sparkline(memData, {type: "bar", barColor: "blue"})
+            cpuMinX = cpuData[0][0]-1
+            cpuMaxX = cpuData[cpuData.length - 1][0]+1
+
+            # $("#cpugraph-#{ctr.name.replace(/\./g, '_')}").sparkline(cpuData, { type: "bar", chartRangeMinX: cpuMinX, chartRangeMaxX: cpuMaxX })
+            # $("#memgraph-#{ctr.name.replace(/\./g, '_')}").sparkline(cpuData, {type: "bar", barColor: "blue"})
 
     setTimeout cb, 100
   , true)

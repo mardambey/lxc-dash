@@ -6,7 +6,7 @@
             <div class="thumbnail">
                 <!-- TODO: on mouse over always show container name -->
                 <h4>{{container.name}}</h4>
-                <h3><span id="cpugraph-{{container.name | dot2Uscore}}"></span> <span class="memgraph-{{container.name | dot2Uscore}}"></span></h3>
+                <h3><span id="cpugraph-{{container.name | dot2Uscore}}"></span> <span id="memgraph-{{container.name | dot2Uscore}}"></span></h3>
                 <span class="label label-{{state | stateToLabel}}">{{state}}</span>
                 <span class="label label-default">{{container.ip || "no ip"}}</span>
                 <span class="label label-default">{{container.hostname || "no hostname"}}</span>

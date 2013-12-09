@@ -11,10 +11,11 @@ import misc.{CpuAcct, Memory, LxcHost}
 
 import play.libs.Akka
 import scala.collection.immutable.SortedMap
+import scala.collection.immutable.Queue
 
 object MonitorActor {
 
-  val actor = Akka.system.actorOf(Props(new MonitorActor(30)))
+  val actor = Akka.system.actorOf(Props(new MonitorActor(10)))
 }
 
 /**
@@ -67,15 +68,19 @@ object HostMonitorActor {
  */
 class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] = None) extends Actor {
 
+  import FiniteQueue._
+
   protected var cancellable: Option[Cancellable] = None
 
   protected val log = Logger(s"application.$this.getClass.getName")
 
   protected var hostInfo: Option[HostInfo] = None
 
-  protected val containerCpuMem = new scala.collection.mutable.HashMap[String, CircularBuffer[ContainerCpuMemory]]
+  protected val containerCpuMem = new scala.collection.mutable.HashMap[String, Queue[ContainerCpuMemory]]
 
   implicit val sshUser = "root"
+
+  val MAX_CTR_CPU_MEM_LENGTH = 30
 
   override def receive = {
 
@@ -97,18 +102,22 @@ class HostMonitorActor(interval: Int, host: String, listener: Option[ActorRef] =
         ("frozen", c.frozen))
         .map((t => {
         (t._1 -> t._2.map(ctr => {
-          val buf = containerCpuMem.getOrElseUpdate(ctr.name, CircularBuffer[ContainerCpuMemory](10))
-          buf.push(ContainerCpuMemory(ctr.cpuacct, ctr.memory, System.currentTimeMillis()))
+          var buf: Queue[ContainerCpuMemory] = containerCpuMem.getOrElseUpdate(ctr.name, Queue[ContainerCpuMemory]())
+          buf = buf.enqueueFinite(ContainerCpuMemory(ctr.cpuacct, ctr.memory, System.currentTimeMillis()/1000), MAX_CTR_CPU_MEM_LENGTH)
+
+          containerCpuMem(ctr.name) = buf
+
+          val arr = buf.toArray.filter(_ != null)
 
           ContainerInfo(
             ctr.name,
             ctr.ip,
             ctr.hostname,
-            buf.getAll.filter(_ != null).map(info => Map("time" -> info.time, "value" -> info.cpuAcct.user)),
-            buf.getAll.filter(_ != null)map(info => Map("time" -> info.time, "value" -> info.cpuAcct.system)),
-            buf.getAll.filter(_ != null)map(info => Map("time" -> info.time, "value" -> info.memory.totalRss)),
-            buf.getAll.filter(_ != null)map(info => Map("time" -> info.time, "value" -> info.memory.totalCache)),
-            buf.getAll.filter(_ != null)map(info => Map("time" -> info.time, "value" -> info.memory.totalSwap)))
+            arr.map(info => Map("time" -> info.time, "value" -> info.cpuAcct.user)),
+            arr.map(info => Map("time" -> info.time, "value" -> info.cpuAcct.system)),
+            arr.map(info => Map("time" -> info.time, "value" -> info.memory.totalRss)),
+            arr.map(info => Map("time" -> info.time, "value" -> info.memory.totalCache)),
+            arr.map(info => Map("time" -> info.time, "value" -> info.memory.totalSwap)))
         }))
       })).toMap
 
@@ -155,21 +164,17 @@ case class ContainerCpuMemory(
   memory: Memory,
   time: Long)
 
-case class CircularBuffer[T](size: Int)(implicit mf: Manifest[T]) {
+object FiniteQueue {
+  implicit def queue2finitequeue[A](q: Queue[A]) : FiniteQueue[A] = new FiniteQueue[A](q)
+  implicit def queue2finitequeue[A]() : FiniteQueue[A] = new FiniteQueue[A](Queue.empty)
+}
 
-  private val arr = new Array[T](size)
+class FiniteQueue[A](q: Queue[A]) {
 
-  private var cursor = 0
-
-  def push(value: T) {
-    arr(cursor) = value
-    cursor += 1
-    cursor %= size
-  }
-
-  def getAll: Array[T] = {
-    val copy = new Array[T](size)
-    arr.copyToArray(copy)
-    copy
+  def enqueueFinite[B >: A](elem: B, maxSize: Int): Queue[B] = {
+    var ret = q.enqueue(elem)
+    while (ret.size > maxSize) { ret = ret.dequeue._2 }
+    ret
   }
 }
+
